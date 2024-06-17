@@ -1,10 +1,11 @@
-import React, {Component} from 'react';
-import {NavigationContainer, DarkTheme} from '@react-navigation/native';
-import {createStackNavigator} from '@react-navigation/stack';
+import React, { Component } from 'react';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import Splash from '../Screen/SplashScreen/Splash';
 import OnboardingScreen from '../Screen/Onboarding/Onboard';
 import NewsListScreen from '../Screen/Home/Main';
 import AddTraining from '../Screen/Home/Video/Video';
+import VideoUpload from '../Screen/Home/Video/VideoUpload';
 const StackNav = props => {
   const Stack = createStackNavigator();
   const mytheme = {
@@ -15,13 +16,14 @@ const StackNav = props => {
   };
   const Screens = {
     Splash: Splash,
-    OnboardingScreen:OnboardingScreen,
-    NewsListScreen:NewsListScreen,
-    AddTraining:AddTraining
+    OnboardingScreen: OnboardingScreen,
+    NewsListScreen: NewsListScreen,
+    AddTraining: AddTraining,
+    VideoUpload: VideoUpload,
   };
   return (
     <NavigationContainer theme={mytheme}>
-      <Stack.Navigator screenOptions={{headerShown: false}}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
         {Object.entries({
           ...Screens,
         }).map(([name, component]) => {

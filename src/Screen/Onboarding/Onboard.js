@@ -15,7 +15,7 @@ const OnboardingScreen = ({ navigation }) => {
   const isFocus = useIsFocused();
   useEffect(() => {
     if (toggleState) {
-      navigation.navigate("AddTraining");
+      navigation.navigate("VideoUpload")
     }
   }, [toggleState, isFocus]);
   const handleToggle = (value) => setToggleState(value);
@@ -74,10 +74,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     elevation: 1,
   },
-  newstext:{
-    fontFamily:Fonts.PoppinsBold,
-    fontSize:normalize(15),
-    color:"#000000"
+  newstext: {
+    fontFamily: Fonts.PoppinsBold,
+    fontSize: normalize(15),
+    color: "#000000"
   }
 });
 

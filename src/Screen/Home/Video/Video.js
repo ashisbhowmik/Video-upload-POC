@@ -8,19 +8,13 @@ import normalize from '../../../Utils/Helpers/Dimen';
 import RNFS from 'react-native-fs';
 import NetInfo from "@react-native-community/netinfo";
 import BackgroundService from 'react-native-background-actions';
-import { useLinkTo } from '@react-navigation/native'; // For deep linking
-import * as UpChunk from '@mux/upchunk';
 
 const AddTraining = () => {
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
-  const [fileToken, setFileToken] = useState("");
-  const [parts, setParts] = useState([]);
   const [token, setToken] = useState("");
-  const [connectionType, setConnectionType] = useState("unknown"); // Default connection type
-  const linkTo = useLinkTo(); // Hook for navigating via linking
+  const [connectionType, setConnectionType] = useState("unknown");
 
-  // Fetch network connection type on component mount
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       setConnectionType(state.type);
@@ -45,9 +39,10 @@ const AddTraining = () => {
     try {
       const result = await apiClient.post("/noauth/tkn", { userId: "40672" });
       const accessToken = result.data.response.access_token;
-      console.log(accessToken, "accessToken=====================");
+      console.log(" accessToken===================== ", accessToken);
       setToken(accessToken);
       apiClient.defaults.headers.Authorization = "Bearer " + accessToken;
+      return accessToken;
     } catch (error) {
       console.error('Error fetching token:', error);
     }
@@ -68,10 +63,9 @@ const AddTraining = () => {
     }
   };
 
-  // Sleep function for delay
   const sleep = (time) => new Promise((resolve) => setTimeout(resolve, time));
 
-  // Background task for uploading video chunks
+
   const uploadFileBackgroundTask = async (taskDataArguments) => {
     console.log("In the upload background function")
 
@@ -224,11 +218,9 @@ const AddTraining = () => {
       showErrorAlert('Please select a file.');
       return;
     }
-
     if (!token) {
       await fetchToken();
     }
-
     const options = {
       taskName: 'VideoUpload',
       taskTitle: 'Uploading Video',
@@ -248,7 +240,6 @@ const AddTraining = () => {
       linkingURI: 'myapp://upload', // Replace with your app's deep link scheme
       delay: 2000, // Delay between chunk uploads to reduce crash likelihood
     };
-
     await BackgroundService.start(uploadFileBackgroundTask, options);
   };
 
