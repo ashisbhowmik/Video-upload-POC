@@ -8,10 +8,14 @@ import normalize from '../../../Utils/Helpers/Dimen';
 import RNFS from 'react-native-fs';
 import NetInfo from "@react-native-community/netinfo";
 import BackgroundService from 'react-native-background-actions';
+
+
+let partsArray = [];
+let token = "";
+
 const VideoUpload = () => {
     const [file, setFile] = useState(null);
     const [progress, setProgress] = useState(0);
-    const [token, setToken] = useState("");
     const [connectionType, setConnectionType] = useState("unknown");
     const MAX_SIMULTANEOUS_UPLOADS = Math.min(50, connectionType === 'cellular' ? 5 : 7);
     const CHUNK_SIZE = Math.min(10 * 1024 * 1024, connectionType === 'cellular' ? 5 * 1024 * 1024 : 10 * 1024 * 1024);
@@ -43,8 +47,8 @@ const VideoUpload = () => {
         try {
             const result = await apiClient.post("/noauth/tkn", { userId: "12345" });
             const accessToken = result.data.response.access_token;
-            console.log(" accessToken===================== ", accessToken);
-            setToken(accessToken);
+            console.log(" accessToken =====================  ", accessToken);
+            token = accessToken;
             apiClient.defaults.headers.Authorization = "Bearer " + accessToken;
             return accessToken;
         } catch (error) { console.error('Error fetching token:', error); }
@@ -90,6 +94,11 @@ const VideoUpload = () => {
 
 
     const uploadFileBackgroundTask = async (file) => {
+        let fileSizeInMBs = file.size / (1024 * 1024);
+        
+        console.log("File Size im mb is ", fileSizeInMBs , " MB ")
+
+        const startTime = new Date().getTime();
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
         console.log("file is >> ", file);
         console.log("TotalChunks >> ", totalChunks)
@@ -101,9 +110,19 @@ const VideoUpload = () => {
             for (let partNumber = 1; partNumber <= totalChunks; partNumber++) {
                 console.log("Creating chunk....")
                 const start = (partNumber - 1) * CHUNK_SIZE;
-                const end = Math.min(partNumber * CHUNK_SIZE, fileSize);
+                const end = Math.min(partNumber * CHUNK_SIZE, file.size);
                 chunkQueue.push({ partNumber, start, end });
             }
+            console.log("Complete creating chunk...")
+            for (let i = 0; i < chunkQueue.length; i++) {
+                await uploadChunk(fileToken, file.uri, totalChunks, chunkQueue[i].partNumber, chunkQueue[i].start, chunkQueue[i].end)
+            }
+            console.log("upload done >>>>>>> ");
+            console.log("parts Arryay is >>>> ", partsArray);
+            const endTime = new Date().getTime();
+            const timeDifference = Math.ceil((endTime - startTime) / 1000 / 60); // Convert milliseconds to seconds
+            let fileSizeInMBs = file.size / (1024 * 1024);
+            console.log(`Time taken for upload ${fileSizeInMBs} MB file is  ${timeDifference} Minute`);
 
         }
         catch (e) {
@@ -111,14 +130,65 @@ const VideoUpload = () => {
         }
 
 
-
-
-
-
-
     }
 
 
+
+    const uploadChunk = async (fileToken, filePath, totalChunks, partNumber, start, end, retries = 3) => {
+        const startTime = new Date().getTime();
+        console.log("in the uploadChunk >>>> ", "partnumber : ", partNumber)
+        try {
+            const partData = await RNFS.read(filePath, end - start, start, 'base64');
+            const presignedUrlResponse = await fetch('https://upload.lykstage.com:9092/mob/gtUp', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    fileToken: fileToken,
+                    partNumber: partNumber
+                })
+            });
+
+            if (!presignedUrlResponse.ok) {
+                const errorText = await presignedUrlResponse.text();
+                console.error('Failed to get presigned URL:', errorText);
+                throw new Error('Failed to get presigned URL');
+            }
+
+            const preResp = await presignedUrlResponse.json();
+            console.log("presignedUrlResponse for partNumber : ", partNumber, " is  : ", preResp?.response?.url)
+            const uploadResponse = await RNFetchBlob.fetch('PUT', preResp?.response?.url, {
+                'Content-Type': 'application/octet-stream',
+            }, partData);
+            const eTag = uploadResponse?.respInfo?.headers?.ETag;
+            if (eTag) {
+                partsArray.push({ ETag: eTag, PartNumber: partNumber });
+                const uploadProgress = (partsArray.length / totalChunks * 100).toFixed(2);
+                setProgress(uploadProgress)
+                const endTime = new Date().getTime();
+                const timeDifference = (endTime - startTime) / 1000; // Convert milliseconds to seconds
+                console.log(`Time taken for partNo  ${partNumber} is : ${timeDifference} seconds`);
+                console.log("progress is --> ", uploadProgress);
+                console.log("\n");
+                console.log("\n");
+                console.log("\n")
+            } else {
+                showErrorAlert('Part upload failed.');
+                throw new Error('Part upload failed');
+            }
+        } catch (error) {
+            if (retries > 0) {
+                console.warn(`Retrying chunk ${partNumber}... (${retries} retries left)`);
+                await sleep(2000); // Adding sleep to avoid immediate retries
+                await uploadChunk(fileToken, filePath, totalChunks, partNumber, start, end, retries - 1);
+            } else {
+                throw error;
+            }
+        }
+    };
 
 
 
@@ -136,7 +206,7 @@ const VideoUpload = () => {
             <Button title="Upload File" onPress={uploadFile} />
             <View style={{ marginVertical: 10 }} />
 
-            {/* <Text>Progress: {progress}%</Text> */}
+            <Text>Progress: {progress}%</Text>
         </View>
     )
 }
