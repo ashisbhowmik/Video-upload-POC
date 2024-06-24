@@ -5,6 +5,7 @@ import normalize from '../../Utils/Helpers/Dimen';
 export default function Splash(props) {
   useEffect(() => {
     setTimeout(() => {
+      // props.navigation.navigate('VideoUpload');
       props.navigation.navigate('VideoUpload');
     }, 3000);
   }, []);

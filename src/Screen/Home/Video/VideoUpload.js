@@ -10,7 +10,7 @@ import NetInfo from "@react-native-community/netinfo";
 import BackgroundService from 'react-native-background-actions';
 
 
-let partsArray = [];
+
 let token = "";
 
 const VideoUpload = () => {
@@ -20,6 +20,8 @@ const VideoUpload = () => {
     const MAX_SIMULTANEOUS_UPLOADS = Math.min(50, connectionType === 'cellular' ? 5 : 7);
     const CHUNK_SIZE = Math.min(10 * 1024 * 1024, connectionType === 'cellular' ? 5 * 1024 * 1024 : 10 * 1024 * 1024);
     const apiClient = axios.create({ baseURL: 'https://upload.lykstage.com:9092', headers: { "Content-Type": "application/json" } });
+    let partsArray = [];
+
 
     useEffect(() => {
         const unsubscribe = NetInfo.addEventListener(state => { setConnectionType(state.type); });
@@ -86,21 +88,38 @@ const VideoUpload = () => {
             return;
         }
         else {
-            await uploadFileBackgroundTask(file, connectionType, MAX_SIMULTANEOUS_UPLOADS, CHUNK_SIZE)
+            const options = {
+                taskName: 'VideoUpload',
+                taskTitle: 'Uploading Video',
+                taskDesc: 'Your video is being uploaded in the background',
+                taskIcon: {
+                    name: 'ic_launcher',
+                    type: 'mipmap',
+                },
+                color: '#ff00ff',
+                parameters: {
+                    file: file,
+                },
+                linkingURI: 'myapp://upload',
+                delay: 2000
+            };
+            await BackgroundService.start(uploadFileBackgroundTask, options);
+
+            // await uploadFileBackgroundTask(file, connectionType, MAX_SIMULTANEOUS_UPLOADS, CHUNK_SIZE)
         }
     };
 
 
 
 
-    const uploadFileBackgroundTask = async (file) => {
+    const uploadFileBackgroundTask = async (taskDataArguments) => {
+        const { file } = taskDataArguments;
         let fileSizeInMBs = file.size / (1024 * 1024);
-        
-        console.log("File Size im mb is ", fileSizeInMBs , " MB ")
-
         const startTime = new Date().getTime();
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
         console.log("file is >> ", file);
+        console.log("File Size im mb is ", fileSizeInMBs, " MB ")
         console.log("TotalChunks >> ", totalChunks)
 
         try {
@@ -123,7 +142,10 @@ const VideoUpload = () => {
             const timeDifference = Math.ceil((endTime - startTime) / 1000 / 60); // Convert milliseconds to seconds
             let fileSizeInMBs = file.size / (1024 * 1024);
             console.log(`Time taken for upload ${fileSizeInMBs} MB file is  ${timeDifference} Minute`);
-
+            if (BackgroundService.isRunning) {
+                await BackgroundService.stop();
+                console.log("Background serviced stopped............>>>>> ")
+            }
         }
         catch (e) {
             console.warn("Error happend---> ", e)

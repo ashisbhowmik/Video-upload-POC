@@ -19,7 +19,7 @@ LogBox.ignoreLogs([
 const LearningApp = () => {
     return (
         <Provider store={Store}>
-            <App/>
+            <App />
         </Provider>
     );
 }
